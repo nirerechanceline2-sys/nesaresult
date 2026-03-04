@@ -8,7 +8,6 @@ export interface Translation {
     help: string;
     contact: string;
     admin: string;
-    menu: string;
   };
   home: {
     welcome: string;
@@ -60,6 +59,7 @@ export interface Translation {
     searchPlaceholder: string;
     internal: string;
     external: string;
+    email: string;
   };
   results: {
     title: string;
@@ -101,6 +101,16 @@ export interface Translation {
     statsTitle: string;
     submissionsTitle: string;
     logout: string;
+    usersTitle: string;
+    activityTitle: string;
+    addStudent: string;
+    addSchool: string;
+    addMarks: string;
+    sendEmail: string;
+    emailSent: string;
+    roleClerk: string;
+    assignDistrict: string;
+    assignedTo: string;
   };
 }
 
@@ -113,7 +123,6 @@ export const translations: Record<Language, Translation> = {
       help: 'Help',
       contact: 'Contact Us',
       admin: 'Admin Portal',
-      menu: 'Menu',
     },
     home: {
       welcome: 'Welcome to the NESA Student Portal',
@@ -165,6 +174,7 @@ export const translations: Record<Language, Translation> = {
       searchPlaceholder: 'Search school by name or district...',
       internal: 'Internal',
       external: 'External',
+      email: 'Email Address (Optional)',
     },
     results: {
       title: 'Check National Exam Results',
@@ -206,6 +216,16 @@ export const translations: Record<Language, Translation> = {
       statsTitle: 'Portal Statistics',
       submissionsTitle: 'Recent Submissions',
       logout: 'Logout',
+      usersTitle: 'User Management',
+      activityTitle: 'Activity Log',
+      addStudent: 'Add New Student',
+      addSchool: 'Add New School',
+      addMarks: 'Enter Marks',
+      sendEmail: 'Send Result to Email',
+      emailSent: 'Result sent to student email!',
+      roleClerk: 'Data Entry Clerk',
+      assignDistrict: 'Assign District',
+      assignedTo: 'Assigned to',
     },
   },
   rw: {
@@ -216,7 +236,6 @@ export const translations: Record<Language, Translation> = {
       help: 'Ubufasha',
       contact: 'Twandikire',
       admin: 'Ubuyobozi',
-      menu: 'Ibikubiyemo',
     },
     home: {
       welcome: 'Ikaze kuri Porutayo y\'Umunyeshuri ya NESA',
@@ -268,6 +287,7 @@ export const translations: Record<Language, Translation> = {
       searchPlaceholder: 'Shaka ishuri ukoresheje izina cyangwa akarere...',
       internal: 'Imbere (Internal)',
       external: 'Hanze (External)',
+      email: 'Imeri (Ntabwo ari itegeko)',
     },
     results: {
       title: 'Reba Amanota y\'Ibizamini bya Leta',
@@ -309,6 +329,16 @@ export const translations: Record<Language, Translation> = {
       statsTitle: 'Imibare y\'urubuga',
       submissionsTitle: 'Ibyoherejwe vuba',
       logout: 'Sohoka',
+      usersTitle: 'Gucunga Abakoresha',
+      activityTitle: 'Ibikorwa by\'Abakoresha',
+      addStudent: 'Ongeramo Umunyeshuri',
+      addSchool: 'Ongeramo Ishuri',
+      addMarks: 'Shyiramo Amanota',
+      sendEmail: 'Ohereza Amanota kuri Imeri',
+      emailSent: 'Amanota yoherejwe kuri imeri!',
+      roleClerk: 'Ushinzwe kwinjiza amanota',
+      assignDistrict: 'Guhitamo Akarere',
+      assignedTo: 'Yashyiriweho',
     },
   },
 };

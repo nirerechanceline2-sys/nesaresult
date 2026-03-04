@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import * as XLSX from 'xlsx';
 import { 
   Home, 
   School, 
@@ -27,6 +28,7 @@ import {
   MessageSquare,
   Newspaper,
   Download,
+  Upload,
   Plus,
   Trash2,
   ChevronRight,
@@ -40,7 +42,7 @@ import {
 import { Language, translations } from './constants';
 import { RWANDA_DISTRICTS, COMBINATIONS, SCHOOLS } from './data';
 
-type Page = 'home' | 'gususha' | 'results' | 'help' | 'contact' | 'admin' | 'menu';
+type Page = 'home' | 'gususha' | 'results' | 'help' | 'contact' | 'admin';
 
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
@@ -50,11 +52,23 @@ export default function App() {
     
     const params = new URLSearchParams(window.location.search);
     const p = params.get('p') as Page;
-    return (['home', 'gususha', 'results', 'help', 'contact', 'admin', 'menu'].includes(p) ? p : 'home');
+    return (['home', 'gususha', 'results', 'help', 'contact', 'admin'].includes(p) ? p : 'home');
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [showNav, setShowNav] = useState(page !== 'admin');
+
+  // Lifted Admin States
+  const [adminUsers, setAdminUsers] = useState<any[]>([
+    { id: '1', name: 'Super Admin', username: 'admin', password: '123', email: 'admin@nesa.gov.rw', role: 'Super Admin', status: 'Active' },
+    { id: '2', name: 'Jean Mugisha', username: 'jean', password: '123', email: 'jean@nesa.gov.rw', role: 'Editor', status: 'Active' },
+    { id: '3', name: 'Clerk One', username: 'clerk1', password: '123', email: 'clerk1@nesa.gov.rw', role: 'Data Entry Clerk', status: 'Active', assignedDistricts: ['Huye'] }
+  ]);
+  const [studentMarks, setStudentMarks] = useState<any[]>([]);
+  const [activityLogs, setActivityLogs] = useState<any[]>([
+    { id: '1', user: 'Super Admin', action: 'Logged in', timestamp: new Date().toLocaleString() },
+  ]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const t = translations[lang];
 
@@ -120,7 +134,6 @@ export default function App() {
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-2">
               <NavItem id="home" label={t.nav.home} icon={Home} />
-              <NavItem id="menu" label={t.nav.menu} icon={Menu} />
               <NavItem id="gususha" label={t.nav.gususha} icon={School} />
               <NavItem id="results" label={t.nav.results} icon={FileText} />
               <NavItem id="help" label={t.nav.help} icon={HelpCircle} />
@@ -153,7 +166,6 @@ export default function App() {
                 className="absolute top-full left-0 right-0 bg-white shadow-xl border-t border-gray-100 p-4 flex flex-col gap-2 md:hidden"
               >
                 <NavItem id="home" label={t.nav.home} icon={Home} />
-                <NavItem id="menu" label={t.nav.menu} icon={Menu} />
                 <NavItem id="gususha" label={t.nav.gususha} icon={School} />
                 <NavItem id="results" label={t.nav.results} icon={FileText} />
                 <NavItem id="help" label={t.nav.help} icon={HelpCircle} />
@@ -177,11 +189,22 @@ export default function App() {
           <AnimatePresence mode="wait">
             {page === 'home' && <HomePage t={t} setPage={setPage} />}
             {page === 'gususha' && <GusushaPage t={t} lang={lang} setShowNav={setShowNav} />}
-            {page === 'results' && <ResultsPage t={t} setShowNav={setShowNav} />}
+            {page === 'results' && <ResultsPage t={t} setShowNav={setShowNav} studentMarks={studentMarks} />}
             {page === 'help' && <HelpPage t={t} />}
             {page === 'contact' && <ContactPage t={t} />}
-            {page === 'admin' && <AdminPage t={t} />}
-            {page === 'menu' && <MenuPage t={t} />}
+            {page === 'admin' && (
+              <AdminPage 
+                t={t} 
+                adminUsers={adminUsers} 
+                setAdminUsers={setAdminUsers}
+                studentMarks={studentMarks}
+                setStudentMarks={setStudentMarks}
+                activityLogs={activityLogs}
+                setActivityLogs={setActivityLogs}
+                currentUser={currentUser}
+                setCurrentUser={setCurrentUser}
+              />
+            )}
           </AnimatePresence>
         </div>
       </main>
@@ -415,7 +438,8 @@ function GusushaPage({ t, lang, setShowNav }: { t: any; lang: Language; setShowN
     level: 'P6',
     selectedSchools: [] as string[],
     combination: '',
-    nationalId: ''
+    nationalId: '',
+    email: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -530,6 +554,12 @@ function GusushaPage({ t, lang, setShowNav }: { t: any; lang: Language; setShowN
                 <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.fullName}</p>
                 <p className="text-2xl font-bold text-gray-900">{formData.fullName}</p>
               </div>
+              {formData.email && (
+                <div>
+                  <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.email}</p>
+                  <p className="text-lg font-bold text-gray-800">{formData.email}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.gender}</p>
@@ -709,6 +739,16 @@ function GusushaPage({ t, lang, setShowNav }: { t: any; lang: Language; setShowN
                   className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-nesa-blue outline-none"
                   value={formData.prevSchool}
                   onChange={e => setFormData({...formData, prevSchool: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-sm font-bold text-gray-700">{t.gususha.email}</label>
+                <input 
+                  type="email" 
+                  placeholder="example@email.com"
+                  className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-nesa-blue outline-none"
+                  value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})}
                 />
               </div>
             </div>
@@ -914,7 +954,7 @@ function GusushaPage({ t, lang, setShowNav }: { t: any; lang: Language; setShowN
   );
 }
 
-function ResultsPage({ t, setShowNav }: { t: any; setShowNav: (show: boolean) => void }) {
+function ResultsPage({ t, setShowNav, studentMarks }: { t: any; setShowNav: (show: boolean) => void; studentMarks: any[] }) {
   const [level, setLevel] = useState('P6');
   const [idType, setIdType] = useState('index');
   const [idValue, setIdValue] = useState('');
@@ -933,17 +973,33 @@ function ResultsPage({ t, setShowNav }: { t: any; setShowNav: (show: boolean) =>
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Mock search
+    
+    // Search in real studentMarks first
+    const realMark = studentMarks.find(m => m.index === idValue || m.nationalId === idValue);
+
     setTimeout(() => {
-      setResult({
-        name: 'MUGISHA Jean de Dieu',
-        school: 'GS St Aloys Rwamagana',
-        aggregate: level === 'P6' ? '6' : '12',
-        division: 'Division 1',
-        status: 'PROMOTED / WATSINZE',
-        index: idValue || '0102030405',
-        year: '2024'
-      });
+      if (realMark) {
+        setResult({
+          name: realMark.studentName,
+          school: 'Assigned School',
+          aggregate: realMark.aggregate,
+          division: realMark.division,
+          status: realMark.status,
+          index: realMark.index || idValue,
+          year: '2024'
+        });
+      } else {
+        // Mock search fallback
+        setResult({
+          name: 'MUGISHA Jean de Dieu',
+          school: 'GS St Aloys Rwamagana',
+          aggregate: level === 'P6' ? '6' : '12',
+          division: 'Division 1',
+          status: 'PROMOTED / WATSINZE',
+          index: idValue || '0102030405',
+          year: '2024'
+        });
+      }
       setLoading(false);
       setView('report');
     }, 1000);
@@ -1240,90 +1296,201 @@ function ContactPage({ t }: { t: any }) {
   );
 }
 
-function MenuPage({ t }: { t: any }) {
-  const menuItems = [
-    { id: 'home', label: t.nav.home, icon: Home, desc: 'Return to the main dashboard' },
-    { id: 'gususha', label: t.nav.gususha, icon: School, desc: 'Select your preferred schools' },
-    { id: 'results', label: t.nav.results, icon: FileText, desc: 'Check your national exam results' },
-    { id: 'help', label: t.nav.help, icon: HelpCircle, desc: 'Get help and support' },
-    { id: 'contact', label: t.nav.contact, icon: Mail, desc: 'Contact the NESA team' },
-  ];
-
-  const handleReloadClick = (id: string) => {
-    window.location.href = `/?p=${id}`;
-  };
-
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-6xl mx-auto py-12"
-    >
-      <div className="text-center mb-16">
-        <h2 className="text-4xl font-black text-nesa-blue mb-4 uppercase tracking-tight">Portal Services</h2>
-        <p className="text-gray-500 max-w-xl mx-auto">Access all NESA student services from this central menu. Clicking a service will reload the portal for a fresh session.</p>
-      </div>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {menuItems.map((item, idx) => (
-          <motion.div
-            key={item.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: idx * 0.1 }}
-            onClick={() => handleReloadClick(item.id)}
-            className="group relative bg-white p-8 rounded-[2rem] border-2 border-gray-100 hover:border-nesa-blue transition-all cursor-pointer shadow-sm hover:shadow-2xl overflow-hidden"
-          >
-            {/* Decorative background element */}
-            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-nesa-light-blue rounded-full opacity-0 group-hover:opacity-20 transition-all group-hover:scale-150" />
-            
-            <div className="relative z-10">
-              <div className="w-14 h-14 bg-nesa-light-blue text-nesa-blue rounded-2xl flex items-center justify-center mb-6 group-hover:bg-nesa-blue group-hover:text-white transition-colors">
-                <item.icon size={28} />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-nesa-blue transition-colors">{item.label}</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
-              
-              <div className="mt-6 flex items-center gap-2 text-nesa-blue font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
-                Launch Service <ChevronRight size={14} />
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="mt-20 p-12 bg-nesa-dark-blue rounded-[3rem] text-white overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="text-center md:text-left">
-            <h3 className="text-2xl font-bold mb-2">Need immediate assistance?</h3>
-            <p className="text-blue-100 opacity-80">Our support team is available 24/7 for technical issues.</p>
-          </div>
-          <button 
-            onClick={() => handleReloadClick('contact')}
-            className="bg-white text-nesa-dark-blue px-8 py-4 rounded-2xl font-black text-lg hover:bg-blue-50 transition-all shadow-xl"
-          >
-            Contact Support
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function AdminPage({ t }: { t: any }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+function AdminPage({ 
+  t, 
+  adminUsers, 
+  setAdminUsers, 
+  studentMarks, 
+  setStudentMarks, 
+  activityLogs, 
+  setActivityLogs,
+  currentUser,
+  setCurrentUser
+}: { 
+  t: any; 
+  adminUsers: any[];
+  setAdminUsers: React.Dispatch<React.SetStateAction<any[]>>;
+  studentMarks: any[];
+  setStudentMarks: React.Dispatch<React.SetStateAction<any[]>>;
+  activityLogs: any[];
+  setActivityLogs: React.Dispatch<React.SetStateAction<any[]>>;
+  currentUser: any;
+  setCurrentUser: React.Dispatch<React.SetStateAction<any>>;
+}) {
+  const [isLoggedIn, setIsLoggedIn] = useState(currentUser !== null);
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'students' | 'schools' | 'results' | 'users' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'students' | 'schools' | 'results' | 'users' | 'settings' | 'mark-entry'>('dashboard');
+
+  // Local Data States (still needed for some)
+  const [students, setStudents] = useState<any[]>([
+    { id: '1', name: 'MUGISHA Jean', level: 'P6', district: 'Huye', status: 'Verified', email: 'jean@example.com', index: '0102030401' },
+    { id: '2', name: 'UWASE Marie', level: 'S3', district: 'Kicukiro', status: 'Pending', email: 'marie@example.com', index: '0102030402' },
+    { id: '3', name: 'KEZA Alice', level: 'S6', district: 'Rubavu', status: 'Verified', index: '0102030403' },
+    { id: '4', name: 'GISA Eric', level: 'L5', district: 'Musanze', status: 'Verified', index: '0102030404' },
+  ]);
+  const [schoolsList, setSchoolsList] = useState<any[]>(SCHOOLS);
+  
+  // UI States
+  const [showModal, setShowModal] = useState<string | null>(null);
+  const [formData, setFormData] = useState<any>({});
+  const [emailStatus, setEmailStatus] = useState<string | null>(null);
+
+  const logActivity = (action: string) => {
+    const newLog = {
+      id: Math.random().toString(36).substring(2, 9),
+      user: currentUser?.name || 'System',
+      action,
+      timestamp: new Date().toLocaleString()
+    };
+    setActivityLogs(prev => [newLog, ...prev]);
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === '123') {
+    const user = adminUsers.find(u => u.username === username && u.password === password);
+    if (user) {
       setIsLoggedIn(true);
+      setCurrentUser(user);
       setError('');
+      
+      // Set initial tab based on role
+      if (user.role === 'Data Entry Clerk') {
+        setActiveTab('mark-entry');
+      } else if (user.role === 'Viewer') {
+        setActiveTab('results');
+      } else {
+        setActiveTab('dashboard');
+      }
+      
+      logActivity(`Logged in to Admin Portal: ${user.name}`);
     } else {
-      setError('Invalid password / Ijambo ry\'ibanga ritaryo');
+      setError('Invalid username or password / Izina cyangwa ijambo ry\'ibanga ritari ryo');
+    }
+  };
+
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newUser = {
+      id: Math.random().toString(36).substring(2, 9),
+      ...formData,
+      status: 'Active'
+    };
+    setAdminUsers(prev => [...prev, newUser]);
+    logActivity(`Added new user: ${formData.name} (${formData.role})`);
+    setShowModal(null);
+    setFormData({});
+  };
+
+  const handleAddStudent = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newStudent = {
+      id: Math.random().toString(36).substring(2, 9),
+      ...formData,
+      status: 'Verified'
+    };
+    setStudents(prev => [...prev, newStudent]);
+    logActivity(`Added new student: ${formData.name}`);
+    setShowModal(null);
+    setFormData({});
+  };
+
+  const handleAddSchool = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newSchool = {
+      ...formData
+    };
+    setSchoolsList(prev => [...prev, newSchool]);
+    logActivity(`Added new school: ${formData.name} in ${formData.district}`);
+    setShowModal(null);
+    setFormData({});
+  };
+
+  const handleImportSchools = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        const newSchools = data.map((item: any) => ({
+          name: item.name || item.SchoolName || item.School || 'Unnamed School',
+          district: item.district || item.District || item.Location || 'Unknown',
+          type: item.type || item.Type || 'Internal'
+        }));
+
+        setSchoolsList(prev => [...prev, ...newSchools]);
+        logActivity(`Imported ${newSchools.length} schools from Excel`);
+        alert(`Successfully imported ${newSchools.length} schools!`);
+      } catch (err) {
+        console.error(err);
+        alert('Error parsing Excel file. Please ensure it has columns like name, district, type.');
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleAddMarks = (e: React.FormEvent) => {
+    e.preventDefault();
+    const m = formData;
+    const total = Number(m.math) + Number(m.science) + Number(m.english) + Number(m.kinyarwanda) + Number(m.social);
+    
+    // Simple aggregate logic (1-9 scale, lower is better)
+    const getGrade = (score: number) => {
+      if (score >= 80) return 1;
+      if (score >= 70) return 2;
+      if (score >= 60) return 3;
+      if (score >= 50) return 4;
+      if (score >= 40) return 5;
+      if (score >= 30) return 6;
+      if (score >= 20) return 7;
+      if (score >= 10) return 8;
+      return 9;
+    };
+
+    const aggregate = getGrade(m.math) + getGrade(m.science) + getGrade(m.english) + getGrade(m.kinyarwanda) + getGrade(m.social);
+    
+    let division = 'Division 4';
+    if (aggregate <= 10) division = 'Division 1';
+    else if (aggregate <= 20) division = 'Division 2';
+    else if (aggregate <= 30) division = 'Division 3';
+
+    const newMarks = {
+      studentId: m.studentId,
+      studentName: students.find(s => s.id === m.studentId)?.name,
+      ...m,
+      total,
+      aggregate,
+      division,
+      status: aggregate <= 35 ? 'PROMOTED / WATSINZE' : 'FAILED / NTAYATSINZE'
+    };
+
+    setStudentMarks(prev => [...prev, newMarks]);
+    logActivity(`Added marks for student: ${newMarks.studentName}`);
+    setShowModal(null);
+    setFormData({});
+  };
+
+  const sendEmail = (studentId: string) => {
+    const student = students.find(s => s.id === studentId);
+    const mark = studentMarks.find(m => m.studentId === studentId);
+    
+    if (student?.email && mark) {
+      setEmailStatus(`Sending result to ${student.email}...`);
+      setTimeout(() => {
+        setEmailStatus(t.admin.emailSent);
+        logActivity(`Sent result email to ${student.name} (${student.email})`);
+        setTimeout(() => setEmailStatus(null), 3000);
+      }, 1500);
+    } else {
+      alert('Student email not set or marks not generated!');
     }
   };
 
@@ -1344,6 +1511,17 @@ function AdminPage({ t }: { t: any }) {
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700">Username / Izina ry'ukoresha</label>
+              <input 
+                type="text" 
+                className={`w-full p-3 rounded-xl border ${error ? 'border-rose-500' : 'border-gray-300'} focus:ring-2 focus:ring-nesa-blue outline-none transition-all`}
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="admin"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-bold text-gray-700">{t.admin.passwordLabel}</label>
               <input 
                 type="password" 
@@ -1351,7 +1529,6 @@ function AdminPage({ t }: { t: any }) {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                autoFocus
               />
               {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
             </div>
@@ -1375,19 +1552,32 @@ function AdminPage({ t }: { t: any }) {
     );
   }
 
-  const SidebarItem = ({ id, label, icon: Icon }: { id: typeof activeTab; label: string; icon: any }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-        activeTab === id 
-          ? 'bg-nesa-blue text-white shadow-lg' 
-          : 'text-gray-400 hover:bg-blue-50 hover:text-nesa-blue'
-      }`}
-    >
-      <Icon size={20} />
-      <span className="font-bold text-sm">{label}</span>
-    </button>
-  );
+  const SidebarItem = ({ id, label, icon: Icon }: { id: typeof activeTab; label: string; icon: any }) => {
+    // Role-based visibility
+    const role = currentUser?.role || 'Viewer';
+    const permissions: Record<string, string[]> = {
+      'Super Admin': ['dashboard', 'students', 'schools', 'results', 'users', 'settings', 'mark-entry'],
+      'Editor': ['dashboard', 'students', 'schools', 'results', 'mark-entry'],
+      'Viewer': ['dashboard', 'results'],
+      'Data Entry Clerk': ['dashboard', 'mark-entry', 'results']
+    };
+
+    if (!permissions[role]?.includes(id)) return null;
+
+    return (
+      <button
+        onClick={() => setActiveTab(id)}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+          activeTab === id 
+            ? 'bg-nesa-blue text-white shadow-lg' 
+            : 'text-gray-400 hover:bg-blue-50 hover:text-nesa-blue'
+        }`}
+      >
+        <Icon size={20} />
+        <span className="font-bold text-sm">{label}</span>
+      </button>
+    );
+  };
 
   return (
     <motion.div 
@@ -1409,8 +1599,9 @@ function AdminPage({ t }: { t: any }) {
           <SidebarItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
           <SidebarItem id="students" label="Students" icon={Users} />
           <SidebarItem id="schools" label="Schools" icon={School} />
+          <SidebarItem id="mark-entry" label="Mark Entry" icon={Plus} />
           <SidebarItem id="results" label="Results" icon={FileText} />
-          <SidebarItem id="users" label="Staff/Users" icon={ShieldCheck} />
+          <SidebarItem id="users" label={t.admin.usersTitle} icon={ShieldCheck} />
           <SidebarItem id="settings" label="Settings" icon={Settings} />
         </nav>
 
@@ -1434,11 +1625,11 @@ function AdminPage({ t }: { t: any }) {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right hidden md:block">
-              <p className="text-sm font-bold text-gray-800">Administrator</p>
-              <p className="text-xs text-nesa-blue">Super Admin Access</p>
+              <p className="text-sm font-bold text-gray-800">{currentUser?.name || 'Administrator'}</p>
+              <p className="text-xs text-nesa-blue">{currentUser?.role || 'Super Admin Access'}</p>
             </div>
             <div className="w-12 h-12 bg-nesa-light-blue rounded-full border-2 border-white shadow-sm flex items-center justify-center text-nesa-blue font-bold">
-              AD
+              {currentUser?.name?.substring(0, 2).toUpperCase() || 'AD'}
             </div>
           </div>
         </header>
@@ -1447,10 +1638,10 @@ function AdminPage({ t }: { t: any }) {
           <div className="space-y-8">
             <div className="grid md:grid-cols-4 gap-6">
               {[
-                { label: 'Total Submissions', value: '1,284', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-                { label: 'P6 Students', value: '842', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-                { label: 'S3 Students', value: '442', icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
-                { label: 'Pending Reviews', value: '12', icon: Bell, color: 'text-rose-600', bg: 'bg-rose-50' },
+                { label: 'Total Submissions', value: students.length.toString(), icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+                { label: 'P6 Students', value: students.filter(s => s.level === 'P6').length.toString(), icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { label: 'S3 Students', value: students.filter(s => s.level === 'S3').length.toString(), icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
+                { label: 'Pending Reviews', value: students.filter(s => s.status === 'Pending').length.toString(), icon: Bell, color: 'text-rose-600', bg: 'bg-rose-50' },
               ].map((stat, idx) => (
                 <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
                   <div className={`w-12 h-12 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -1469,7 +1660,7 @@ function AdminPage({ t }: { t: any }) {
                     <LayoutDashboard size={20} className="text-nesa-blue" />
                     {t.admin.submissionsTitle}
                   </h3>
-                  <button className="text-nesa-blue text-sm font-bold hover:underline">View All</button>
+                  <button onClick={() => setActiveTab('students')} className="text-nesa-blue text-sm font-bold hover:underline">View All</button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
@@ -1479,17 +1670,10 @@ function AdminPage({ t }: { t: any }) {
                         <th className="px-6 py-4 font-bold">Level</th>
                         <th className="px-6 py-4 font-bold">District</th>
                         <th className="px-6 py-4 font-bold">Status</th>
-                        <th className="px-6 py-4 font-bold">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {[
-                        { name: 'MUGISHA Jean', level: 'P6', district: 'Huye', status: 'Verified' },
-                        { name: 'UWASE Marie', level: 'S3', district: 'Kicukiro', status: 'Pending' },
-                        { name: 'KEZA Alice', level: 'S6', district: 'Rubavu', status: 'Verified' },
-                        { name: 'GISA Eric', level: 'L5', district: 'Musanze', status: 'Verified' },
-                        { name: 'IRADUKUNDA Bertin', level: 'P6', district: 'Gasabo', status: 'Pending' },
-                      ].map((row, idx) => (
+                      {students.slice(0, 5).map((row, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 font-bold text-gray-800">{row.name}</td>
                           <td className="px-6 py-4 text-sm text-gray-600">{row.level}</td>
@@ -1501,9 +1685,6 @@ function AdminPage({ t }: { t: any }) {
                               {row.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4">
-                            <button className="text-nesa-blue hover:text-nesa-dark-blue"><Settings size={16} /></button>
-                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -1512,28 +1693,22 @@ function AdminPage({ t }: { t: any }) {
               </div>
 
               <div className="space-y-6">
-                <div className="bg-nesa-dark-blue text-white p-8 rounded-3xl shadow-xl">
-                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <ShieldCheck size={24} />
-                    System Status
+                <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Database size={20} className="text-nesa-blue" />
+                    {t.admin.activityTitle}
                   </h3>
                   <div className="space-y-4">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-blue-200">Database</span>
-                      <span className="font-bold text-green-400">Online</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-blue-200">API Gateway</span>
-                      <span className="font-bold text-green-400">Stable</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-blue-200">Server Load</span>
-                      <span className="font-bold text-amber-400">Normal (24%)</span>
-                    </div>
+                    {activityLogs.slice(0, 5).map(log => (
+                      <div key={log.id} className="flex gap-3 text-xs">
+                        <div className="w-1 h-auto bg-nesa-blue rounded-full" />
+                        <div>
+                          <p className="font-bold text-gray-800">{log.action}</p>
+                          <p className="text-gray-400">{log.user} • {log.timestamp}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <button className="w-full mt-6 bg-white/10 hover:bg-white/20 py-3 rounded-xl text-sm font-bold transition-all">
-                    Run Diagnostics
-                  </button>
                 </div>
               </div>
             </div>
@@ -1541,51 +1716,548 @@ function AdminPage({ t }: { t: any }) {
         )}
 
         {activeTab === 'students' && (
-          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
-            <Users size={48} className="mx-auto text-gray-300" />
-            <h3 className="text-xl font-bold text-gray-800">Student Management Module</h3>
-            <p className="text-gray-500 max-w-md mx-auto">Manage all student applications, edit profiles, and verify submitted documents from this module.</p>
-            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Load Student Data</button>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Student Management</h3>
+              <button 
+                onClick={() => setShowModal('student')}
+                className="bg-nesa-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md"
+              >
+                <Plus size={18} /> {t.admin.addStudent}
+              </button>
+            </div>
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 font-bold">Name</th>
+                    <th className="px-6 py-4 font-bold">Index</th>
+                    <th className="px-6 py-4 font-bold">Level</th>
+                    <th className="px-6 py-4 font-bold">Email</th>
+                    <th className="px-6 py-4 font-bold">Status</th>
+                    <th className="px-6 py-4 font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {students.map(student => (
+                    <tr key={student.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-bold">{student.name}</td>
+                      <td className="px-6 py-4 text-sm font-mono">{student.index || 'N/A'}</td>
+                      <td className="px-6 py-4 text-sm">{student.level}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{student.email || 'N/A'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${
+                          student.status === 'Verified' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {student.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button className="text-rose-500 hover:text-rose-700"><Trash2 size={16} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeTab === 'schools' && (
-          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
-            <School size={48} className="mx-auto text-gray-300" />
-            <h3 className="text-xl font-bold text-gray-800">School Registry Module</h3>
-            <p className="text-gray-500 max-w-md mx-auto">Update the list of secondary schools, TVET centers, and TTCs available for student selection.</p>
-            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Manage Schools</button>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">School Registry</h3>
+              <div className="flex gap-3">
+                <label className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md cursor-pointer hover:bg-emerald-700 transition-all">
+                  <Upload size={18} /> Import Excel
+                  <input type="file" accept=".xlsx, .xls" className="hidden" onChange={handleImportSchools} />
+                </label>
+                <button 
+                  onClick={() => setShowModal('school')}
+                  className="bg-nesa-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md"
+                >
+                  <Plus size={18} /> {t.admin.addSchool}
+                </button>
+              </div>
+            </div>
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 font-bold">School Name</th>
+                    <th className="px-6 py-4 font-bold">District</th>
+                    <th className="px-6 py-4 font-bold">Type</th>
+                    <th className="px-6 py-4 font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {schoolsList.map((school, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-bold">{school.name}</td>
+                      <td className="px-6 py-4 text-sm">{school.district}</td>
+                      <td className="px-6 py-4 text-sm">{school.type}</td>
+                      <td className="px-6 py-4">
+                        <button className="text-rose-500 hover:text-rose-700"><Trash2 size={16} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeTab === 'results' && (
-          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
-            <FileText size={48} className="mx-auto text-gray-300" />
-            <h3 className="text-xl font-bold text-gray-800">Results Management Module</h3>
-            <p className="text-gray-500 max-w-md mx-auto">Upload national examination results, generate result slips, and manage grade distributions.</p>
-            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Upload Results (CSV)</button>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Results & Marks Management</h3>
+              <button 
+                onClick={() => setShowModal('marks')}
+                className="bg-nesa-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md"
+              >
+                <Plus size={18} /> {t.admin.addMarks}
+              </button>
+            </div>
+
+            {emailStatus && (
+              <div className="bg-blue-50 text-nesa-blue p-4 rounded-xl border border-blue-100 font-bold text-center animate-pulse">
+                {emailStatus}
+              </div>
+            )}
+
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 font-bold">Student</th>
+                    <th className="px-6 py-4 font-bold">Total</th>
+                    <th className="px-6 py-4 font-bold">Aggregate</th>
+                    <th className="px-6 py-4 font-bold">Division</th>
+                    <th className="px-6 py-4 font-bold">Status</th>
+                    <th className="px-6 py-4 font-bold">Email Result</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {studentMarks.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-400 italic">No marks recorded yet. Add marks to generate reports.</td>
+                    </tr>
+                  ) : (
+                    studentMarks.map((mark, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 font-bold">{mark.studentName}</td>
+                        <td className="px-6 py-4 font-mono">{mark.total}/500</td>
+                        <td className="px-6 py-4 font-bold text-nesa-blue">{mark.aggregate}</td>
+                        <td className="px-6 py-4 font-bold">{mark.division}</td>
+                        <td className="px-6 py-4">
+                          <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${
+                            mark.status.includes('PROMOTED') ? 'bg-green-100 text-green-700' : 'bg-rose-100 text-rose-700'
+                          }`}>
+                            {mark.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button 
+                            onClick={() => sendEmail(mark.studentId)}
+                            className="text-nesa-blue hover:text-nesa-dark-blue flex items-center gap-1 font-bold text-sm"
+                          >
+                            <Mail size={14} /> {t.admin.sendEmail}
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeTab === 'users' && (
-          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
-            <ShieldCheck size={48} className="mx-auto text-gray-300" />
-            <h3 className="text-xl font-bold text-gray-800">Staff & Permissions Module</h3>
-            <p className="text-gray-500 max-w-md mx-auto">Manage administrative users, assign roles (Super Admin, Editor, Viewer), and review audit logs.</p>
-            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Manage Staff</button>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-bold text-gray-800">Staff & User Management</h3>
+              <button 
+                onClick={() => setShowModal('user')}
+                className="bg-nesa-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md"
+              >
+                <Plus size={18} /> Add New User
+              </button>
+            </div>
+            
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 font-bold">Name</th>
+                      <th className="px-6 py-4 font-bold">Role</th>
+                      <th className="px-6 py-4 font-bold">Status</th>
+                      <th className="px-6 py-4 font-bold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {adminUsers.map(user => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <p className="font-bold text-gray-800">{user.name}</p>
+                          <p className="text-xs text-gray-400">{user.email}</p>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-medium">{user.role}</td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-green-100 text-green-700">
+                            {user.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button className="text-rose-500 hover:text-rose-700"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm">
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Database size={20} className="text-nesa-blue" />
+                  Full Activity Log
+                </h3>
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {activityLogs.map(log => (
+                    <div key={log.id} className="flex gap-3 text-xs border-b border-gray-50 pb-3">
+                      <div className="w-1 h-auto bg-gray-200 rounded-full" />
+                      <div>
+                        <p className="font-bold text-gray-700">{log.action}</p>
+                        <p className="text-gray-400">{log.user} • {log.timestamp}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
+        {activeTab === 'mark-entry' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">Assigned Mark Entry</h3>
+                {currentUser?.role === 'Data Entry Clerk' && (
+                  <p className="text-sm text-gray-500">
+                    You are assigned to: {currentUser.assignedDistricts?.join(', ') || 'Specific Students'}
+                  </p>
+                )}
+              </div>
+              <button 
+                onClick={() => setShowModal('marks')}
+                className="bg-nesa-blue text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md"
+              >
+                <Plus size={18} /> Add Marks
+              </button>
+            </div>
+
+            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-gray-100">
+                <h4 className="font-bold text-gray-700">Students Awaiting Marks</h4>
+              </div>
+              <table className="w-full text-left">
+                <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4 font-bold">Student Name</th>
+                    <th className="px-6 py-4 font-bold">District</th>
+                    <th className="px-6 py-4 font-bold">Level</th>
+                    <th className="px-6 py-4 font-bold">Status</th>
+                    <th className="px-6 py-4 font-bold">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {students
+                    .filter(s => {
+                      if (currentUser?.role === 'Data Entry Clerk') {
+                        if (currentUser.assignedDistricts?.length > 0) {
+                          return currentUser.assignedDistricts.includes(s.district);
+                        }
+                      }
+                      return true;
+                    })
+                    .filter(s => !studentMarks.find(m => m.studentId === s.id))
+                    .map(student => (
+                      <tr key={student.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 font-bold">{student.name}</td>
+                        <td className="px-6 py-4 text-sm">{student.district}</td>
+                        <td className="px-6 py-4 text-sm">{student.level}</td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-black uppercase px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                            No Marks
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button 
+                            onClick={() => {
+                              setFormData({ studentId: student.id });
+                              setShowModal('marks');
+                            }}
+                            className="text-nesa-blue font-bold text-sm hover:underline"
+                          >
+                            Enter Marks
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {activeTab === 'settings' && (
-          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
-            <Settings size={48} className="mx-auto text-gray-300" />
-            <h3 className="text-xl font-bold text-gray-800">System Settings</h3>
-            <p className="text-gray-500 max-w-md mx-auto">Configure portal deadlines, maintenance mode, and global notification settings.</p>
-            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Save Configuration</button>
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 space-y-8">
+            <div className="flex items-center gap-4 border-b pb-6">
+              <Settings size={32} className="text-nesa-blue" />
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">System Configuration</h3>
+                <p className="text-gray-500 text-sm">Manage global portal settings and deadlines.</p>
+              </div>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <h4 className="font-bold text-nesa-dark-blue uppercase text-xs tracking-widest">Deadlines</h4>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-600">P6 School Selection Deadline</label>
+                  <input type="date" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" defaultValue="2025-03-15" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-600">S3 Placement Results Release</label>
+                  <input type="date" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" defaultValue="2025-04-01" />
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <h4 className="font-bold text-nesa-dark-blue uppercase text-xs tracking-widest">Portal Status</h4>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                  <div>
+                    <p className="font-bold text-gray-800">Maintenance Mode</p>
+                    <p className="text-xs text-gray-400">Disable public access to the portal</p>
+                  </div>
+                  <div className="w-12 h-6 bg-gray-300 rounded-full relative cursor-pointer">
+                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl">
+                  <div>
+                    <p className="font-bold text-gray-800">Email Notifications</p>
+                    <p className="text-xs text-gray-400">Auto-send results to student emails</p>
+                  </div>
+                  <div className="w-12 h-6 bg-nesa-blue rounded-full relative cursor-pointer">
+                    <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <button className="bg-nesa-blue text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-nesa-dark-blue transition-all">
+              Save All Changes
+            </button>
           </div>
         )}
       </main>
+
+      {/* Modals */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-nesa-blue text-white">
+                <h3 className="text-xl font-bold">
+                  {showModal === 'user' && 'Add New Admin User'}
+                  {showModal === 'student' && 'Add New Student'}
+                  {showModal === 'school' && 'Add New School'}
+                  {showModal === 'marks' && 'Enter Student Marks'}
+                </h3>
+                <button onClick={() => { setShowModal(null); setFormData({}); }} className="hover:bg-white/20 p-1 rounded-lg">
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <form 
+                onSubmit={
+                  showModal === 'user' ? handleAddUser :
+                  showModal === 'student' ? handleAddStudent :
+                  showModal === 'school' ? handleAddSchool :
+                  handleAddMarks
+                }
+                className="p-8 space-y-4"
+              >
+                {showModal === 'user' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Full Name</label>
+                      <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, name: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Username</label>
+                        <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, username: e.target.value})} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Password</label>
+                        <input required type="password" placeholder="••••••••" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, password: e.target.value})} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Email Address</label>
+                      <input required type="email" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, email: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Role</label>
+                      <select required className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, role: e.target.value})}>
+                        <option value="">Select Role</option>
+                        <option value="Super Admin">Super Admin</option>
+                        <option value="Editor">Editor</option>
+                        <option value="Viewer">Viewer</option>
+                        <option value="Data Entry Clerk">{t.admin.roleClerk}</option>
+                      </select>
+                    </div>
+
+                    {formData.role === 'Data Entry Clerk' && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">{t.admin.assignDistrict} (Comma separated)</label>
+                        <input 
+                          type="text" 
+                          placeholder="Huye, Nyarugenge, Musanze"
+                          className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" 
+                          onChange={e => setFormData({...formData, assignedDistricts: e.target.value.split(',').map((s: string) => s.trim())})} 
+                        />
+                        <p className="text-[10px] text-gray-400 italic">Assign districts this clerk can enter marks for.</p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {showModal === 'student' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Student Name</label>
+                      <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, name: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Level</label>
+                        <select required className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, level: e.target.value})}>
+                          <option value="">Select Level</option>
+                          <option value="P6">P6</option>
+                          <option value="S3">S3</option>
+                          <option value="L5">L5</option>
+                          <option value="S6">S6</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">District</label>
+                        <select required className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, district: e.target.value})}>
+                          <option value="">Select District</option>
+                          {RWANDA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Email (Optional)</label>
+                      <input type="email" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, email: e.target.value})} />
+                    </div>
+                  </>
+                )}
+
+                {showModal === 'school' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">School Name</label>
+                      <input required type="text" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, name: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">District</label>
+                      <select required className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, district: e.target.value})}>
+                        <option value="">Select District</option>
+                        {RWANDA_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Type</label>
+                      <select required className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, type: e.target.value})}>
+                        <option value="Internal">Internal (Boarding)</option>
+                        <option value="External">External (Day)</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {showModal === 'marks' && (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-500 uppercase">Select Student</label>
+                      <select 
+                        required 
+                        className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" 
+                        value={formData.studentId || ''}
+                        onChange={e => setFormData({...formData, studentId: e.target.value})}
+                      >
+                        <option value="">Select Student</option>
+                        {students
+                          .filter(s => {
+                            if (currentUser?.role === 'Data Entry Clerk') {
+                              if (currentUser.assignedDistricts?.length > 0) {
+                                return currentUser.assignedDistricts.includes(s.district);
+                              }
+                            }
+                            return true;
+                          })
+                          .map(s => <option key={s.id} value={s.id}>{s.name} ({s.level}) - {s.district}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Mathematics</label>
+                        <input required type="number" min="0" max="100" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, math: e.target.value})} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Science</label>
+                        <input required type="number" min="0" max="100" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, science: e.target.value})} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">English</label>
+                        <input required type="number" min="0" max="100" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, english: e.target.value})} />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Kinyarwanda</label>
+                        <input required type="number" min="0" max="100" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, kinyarwanda: e.target.value})} />
+                      </div>
+                      <div className="space-y-1 col-span-2">
+                        <label className="text-xs font-bold text-gray-500 uppercase">Social Studies</label>
+                        <input required type="number" min="0" max="100" className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-nesa-blue" onChange={e => setFormData({...formData, social: e.target.value})} />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <button type="submit" className="w-full bg-nesa-blue text-white py-4 rounded-2xl font-black text-lg shadow-xl hover:bg-nesa-dark-blue transition-all mt-4">
+                  Confirm & Save
+                </button>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
+
 
