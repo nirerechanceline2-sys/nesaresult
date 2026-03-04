@@ -7,6 +7,8 @@ export interface Translation {
     results: string;
     help: string;
     contact: string;
+    admin: string;
+    menu: string;
   };
   home: {
     welcome: string;
@@ -91,6 +93,15 @@ export interface Translation {
     send: string;
     info: string;
   };
+  admin: {
+    loginTitle: string;
+    passwordLabel: string;
+    loginButton: string;
+    dashboardTitle: string;
+    statsTitle: string;
+    submissionsTitle: string;
+    logout: string;
+  };
 }
 
 export const translations: Record<Language, Translation> = {
@@ -101,6 +112,8 @@ export const translations: Record<Language, Translation> = {
       results: 'Check Results',
       help: 'Help',
       contact: 'Contact Us',
+      admin: 'Admin Portal',
+      menu: 'Menu',
     },
     home: {
       welcome: 'Welcome to the NESA Student Portal',
@@ -185,6 +198,15 @@ export const translations: Record<Language, Translation> = {
       send: 'Send Message',
       info: 'Official Contact Details',
     },
+    admin: {
+      loginTitle: 'Admin Login',
+      passwordLabel: 'Password',
+      loginButton: 'Login',
+      dashboardTitle: 'Admin Dashboard',
+      statsTitle: 'Portal Statistics',
+      submissionsTitle: 'Recent Submissions',
+      logout: 'Logout',
+    },
   },
   rw: {
     nav: {
@@ -193,6 +215,8 @@ export const translations: Record<Language, Translation> = {
       results: 'Reba Amanota',
       help: 'Ubufasha',
       contact: 'Twandikire',
+      admin: 'Ubuyobozi',
+      menu: 'Ibikubiyemo',
     },
     home: {
       welcome: 'Ikaze kuri Porutayo y\'Umunyeshuri ya NESA',
@@ -276,6 +300,15 @@ export const translations: Record<Language, Translation> = {
       formMessage: 'Ubutumwa',
       send: 'Ohereza ubutumwa',
       info: 'Amakuru yo kutugeraho',
+    },
+    admin: {
+      loginTitle: 'Kwinjira nk\'Umuyobozi',
+      passwordLabel: 'Ijambo ry\'ibanga',
+      loginButton: 'Injira',
+      dashboardTitle: 'Ibiro by\'Umuyobozi',
+      statsTitle: 'Imibare y\'urubuga',
+      submissionsTitle: 'Ibyoherejwe vuba',
+      logout: 'Sohoka',
     },
   },
 };

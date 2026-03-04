@@ -31,21 +31,47 @@ import {
   Trash2,
   ChevronRight,
   ChevronDown,
-  ArrowLeft
+  ArrowLeft,
+  Lock,
+  Users,
+  Settings,
+  LayoutDashboard
 } from 'lucide-react';
 import { Language, translations } from './constants';
 import { RWANDA_DISTRICTS, COMBINATIONS, SCHOOLS } from './data';
 
-type Page = 'home' | 'gususha' | 'results' | 'help' | 'contact';
+type Page = 'home' | 'gususha' | 'results' | 'help' | 'contact' | 'admin' | 'menu';
 
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
-  const [page, setPage] = useState<Page>('home');
+  const [page, setPage] = useState<Page>(() => {
+    const path = window.location.pathname;
+    if (path === '/admin') return 'admin';
+    
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get('p') as Page;
+    return (['home', 'gususha', 'results', 'help', 'contact', 'admin', 'menu'].includes(p) ? p : 'home');
+  });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [showNav, setShowNav] = useState(true);
+  const [showNav, setShowNav] = useState(page !== 'admin');
 
   const t = translations[lang];
+
+  useEffect(() => {
+    if (page === 'admin') {
+      if (window.location.pathname !== '/admin') {
+        window.history.replaceState({}, '', '/admin');
+      }
+    } else {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('p') !== page) {
+        params.set('p', page);
+        window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+      }
+    }
+    setShowNav(page !== 'admin');
+  }, [page]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -94,6 +120,7 @@ export default function App() {
             {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-2">
               <NavItem id="home" label={t.nav.home} icon={Home} />
+              <NavItem id="menu" label={t.nav.menu} icon={Menu} />
               <NavItem id="gususha" label={t.nav.gususha} icon={School} />
               <NavItem id="results" label={t.nav.results} icon={FileText} />
               <NavItem id="help" label={t.nav.help} icon={HelpCircle} />
@@ -126,6 +153,7 @@ export default function App() {
                 className="absolute top-full left-0 right-0 bg-white shadow-xl border-t border-gray-100 p-4 flex flex-col gap-2 md:hidden"
               >
                 <NavItem id="home" label={t.nav.home} icon={Home} />
+                <NavItem id="menu" label={t.nav.menu} icon={Menu} />
                 <NavItem id="gususha" label={t.nav.gususha} icon={School} />
                 <NavItem id="results" label={t.nav.results} icon={FileText} />
                 <NavItem id="help" label={t.nav.help} icon={HelpCircle} />
@@ -148,10 +176,12 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4">
           <AnimatePresence mode="wait">
             {page === 'home' && <HomePage t={t} setPage={setPage} />}
-            {page === 'gususha' && <GusushaPage t={t} lang={lang} />}
+            {page === 'gususha' && <GusushaPage t={t} lang={lang} setShowNav={setShowNav} />}
             {page === 'results' && <ResultsPage t={t} setShowNav={setShowNav} />}
             {page === 'help' && <HelpPage t={t} />}
             {page === 'contact' && <ContactPage t={t} />}
+            {page === 'admin' && <AdminPage t={t} />}
+            {page === 'menu' && <MenuPage t={t} />}
           </AnimatePresence>
         </div>
       </main>
@@ -371,7 +401,7 @@ function HomePage({ t, setPage }: { t: any; setPage: (p: Page) => void }) {
   );
 }
 
-function GusushaPage({ t, lang }: { t: any; lang: Language }) {
+function GusushaPage({ t, lang, setShowNav }: { t: any; lang: Language; setShowNav: (show: boolean) => void }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -391,6 +421,14 @@ function GusushaPage({ t, lang }: { t: any; lang: Language }) {
   const [submitted, setSubmitted] = useState(false);
   const [refNum, setRefNum] = useState('');
   const [expandedDistrict, setExpandedDistrict] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (submitted) {
+      setShowNav(false);
+    } else {
+      setShowNav(true);
+    }
+  }, [submitted, setShowNav]);
 
   const filteredSchools = SCHOOLS.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -457,30 +495,130 @@ function GusushaPage({ t, lang }: { t: any; lang: Language }) {
   if (submitted) {
     return (
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="max-w-2xl mx-auto bg-white p-8 rounded-3xl border-2 border-nesa-blue text-center shadow-2xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-4xl mx-auto space-y-8"
       >
-        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircle2 size={48} />
-        </div>
-        <h2 className="text-3xl font-bold text-nesa-blue mb-4">{t.gususha.success}</h2>
-        <p className="text-gray-600 mb-8">
-          {lang === 'en' ? 'Your school selection has been recorded. Please keep your reference number for future tracking.' : 'Guhitamo amashuri kwawe kwakiriwe. Mubike inomero yanyu y\'icyemezo kugira ngo muzayikoreshe mu gukurikirana.'}
-        </p>
-        <div className="bg-nesa-light-blue p-6 rounded-2xl mb-8">
-          <p className="text-nesa-blue text-sm font-bold uppercase tracking-widest mb-2">
-            {['L5', 'S6'].includes(formData.level) ? t.results.nationalId : t.gususha.refNumber}
-          </p>
-          <p className="text-4xl font-black text-nesa-dark-blue font-mono">{refNum}</p>
-        </div>
         <button 
-          onClick={() => window.print()}
-          className="bg-nesa-blue text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 mx-auto hover:bg-nesa-dark-blue transition-all"
+          onClick={() => setSubmitted(false)}
+          className="flex items-center gap-2 text-nesa-blue font-bold hover:underline mb-4 print:hidden"
         >
-          <Printer size={20} />
-          {t.results.print}
+          <ArrowLeft size={20} /> Back to Form / Gusubira inyuma
         </button>
+
+        <div id="confirmation-slip" className="bg-white p-8 md:p-12 rounded-3xl border-2 border-nesa-blue shadow-2xl relative overflow-hidden print:border-0 print:shadow-none print:p-0">
+          {/* Watermark */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
+            <div className="w-96 h-96 bg-nesa-blue rounded-full flex items-center justify-center text-white font-black text-9xl">N</div>
+          </div>
+
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 mb-12 border-b-2 border-nesa-blue pb-8">
+            <div className="text-center md:text-left">
+              <div className="w-16 h-16 bg-nesa-blue rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto md:mx-0 mb-4">N</div>
+              <h3 className="text-2xl font-black text-nesa-dark-blue uppercase tracking-tighter">Republic of Rwanda</h3>
+              <p className="text-nesa-blue font-bold text-sm">National Examination and School Inspection Authority</p>
+            </div>
+            <div className="text-center md:text-right">
+              <h4 className="text-xl font-bold text-gray-800 uppercase tracking-tight">School Selection Confirmation</h4>
+              <p className="text-nesa-blue font-black text-lg font-mono mt-2">REF: {refNum}</p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 mb-12">
+            <div className="space-y-6">
+              <div>
+                <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.fullName}</p>
+                <p className="text-2xl font-bold text-gray-900">{formData.fullName}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.gender}</p>
+                  <p className="text-lg font-bold text-gray-800">{formData.gender === 'M' ? 'Male' : 'Female'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.dob}</p>
+                  <p className="text-lg font-bold text-gray-800">{formData.dob}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.level}</p>
+                <p className="text-lg font-bold text-gray-800">{formData.level}</p>
+              </div>
+              <div>
+                <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.prevSchool}</p>
+                <p className="text-lg font-bold text-gray-800">{formData.prevSchool} ({formData.district})</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              {!['L5', 'S6'].includes(formData.level) && (
+                <div>
+                  <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-3">{t.gususha.schoolChoice}</p>
+                  <div className="space-y-2">
+                    {formData.selectedSchools.map((school, idx) => (
+                      <div key={idx} className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <span className="w-6 h-6 bg-nesa-blue text-white rounded-full flex items-center justify-center text-xs font-bold">{idx + 1}</span>
+                        <span className="font-bold text-gray-800">{school}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {formData.level === 'S3' && (
+                <div>
+                  <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.gususha.combination}</p>
+                  <p className="text-lg font-bold text-gray-800">{formData.combination}</p>
+                </div>
+              )}
+
+              {['L5', 'S6'].includes(formData.level) && (
+                <div>
+                  <p className="text-xs font-black text-nesa-blue uppercase tracking-widest mb-1">{t.results.nationalId}</p>
+                  <p className="text-2xl font-black text-nesa-dark-blue font-mono">{formData.nationalId}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-green-50 p-6 rounded-3xl border border-green-100 flex items-center justify-center gap-4 mb-12">
+            <CheckCircle2 className="text-green-600" size={32} />
+            <div>
+              <p className="text-green-800 font-black uppercase tracking-wider leading-tight">{t.gususha.success}</p>
+              <p className="text-green-600 text-sm font-medium">Your application has been successfully recorded.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-gray-100">
+            <div className="flex items-center gap-4">
+              <div className="w-24 h-24 bg-gray-100 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-300 text-xs font-bold">QR VERIFY</div>
+              <p className="text-[10px] text-gray-400 max-w-[200px] leading-tight italic">
+                This is an official electronic confirmation of school selection. Authenticity can be verified using the reference number on the NESA portal.
+              </p>
+            </div>
+            <div className="text-center md:text-right">
+              <p className="text-xs font-bold text-gray-400 uppercase mb-2">Submission Date</p>
+              <p className="font-bold text-gray-800">{new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-4 print:hidden">
+          <button 
+            onClick={() => window.print()}
+            className="bg-nesa-blue text-white px-10 py-4 rounded-2xl font-black text-lg shadow-xl hover:bg-nesa-dark-blue transition-all flex items-center gap-3"
+          >
+            <Download size={24} />
+            Download Confirmation PDF
+          </button>
+          <button 
+            onClick={() => window.print()}
+            className="bg-white text-nesa-blue border-2 border-nesa-blue px-10 py-4 rounded-2xl font-black text-lg shadow-lg hover:bg-nesa-light-blue transition-all flex items-center gap-3"
+          >
+            <Printer size={24} />
+            {t.results.print}
+          </button>
+        </div>
       </motion.div>
     );
   }
@@ -930,7 +1068,7 @@ function ResultsPage({ t, setShowNav }: { t: any; setShowNav: (show: boolean) =>
                 onChange={e => {
                   const val = e.target.value;
                   setLevel(val);
-                  if (val === 'L5') setIdType('nid');
+                  if (['L5', 'S6'].includes(val)) setIdType('nid');
                   else setIdType('index');
                 }}
               >
@@ -946,7 +1084,7 @@ function ResultsPage({ t, setShowNav }: { t: any; setShowNav: (show: boolean) =>
                 className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-nesa-blue outline-none"
                 value={idType}
                 onChange={e => setIdType(e.target.value)}
-                disabled={level === 'L5'}
+                disabled={['L5', 'S6'].includes(level)}
               >
                 <option value="index">{t.results.indexNumber}</option>
                 <option value="nid">{t.results.nationalId}</option>
@@ -1098,6 +1236,355 @@ function ContactPage({ t }: { t: any }) {
           <p className="text-sm text-gray-600">Saturday - Sunday: Closed</p>
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+function MenuPage({ t }: { t: any }) {
+  const menuItems = [
+    { id: 'home', label: t.nav.home, icon: Home, desc: 'Return to the main dashboard' },
+    { id: 'gususha', label: t.nav.gususha, icon: School, desc: 'Select your preferred schools' },
+    { id: 'results', label: t.nav.results, icon: FileText, desc: 'Check your national exam results' },
+    { id: 'help', label: t.nav.help, icon: HelpCircle, desc: 'Get help and support' },
+    { id: 'contact', label: t.nav.contact, icon: Mail, desc: 'Contact the NESA team' },
+  ];
+
+  const handleReloadClick = (id: string) => {
+    window.location.href = `/?p=${id}`;
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-6xl mx-auto py-12"
+    >
+      <div className="text-center mb-16">
+        <h2 className="text-4xl font-black text-nesa-blue mb-4 uppercase tracking-tight">Portal Services</h2>
+        <p className="text-gray-500 max-w-xl mx-auto">Access all NESA student services from this central menu. Clicking a service will reload the portal for a fresh session.</p>
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {menuItems.map((item, idx) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            onClick={() => handleReloadClick(item.id)}
+            className="group relative bg-white p-8 rounded-[2rem] border-2 border-gray-100 hover:border-nesa-blue transition-all cursor-pointer shadow-sm hover:shadow-2xl overflow-hidden"
+          >
+            {/* Decorative background element */}
+            <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-nesa-light-blue rounded-full opacity-0 group-hover:opacity-20 transition-all group-hover:scale-150" />
+            
+            <div className="relative z-10">
+              <div className="w-14 h-14 bg-nesa-light-blue text-nesa-blue rounded-2xl flex items-center justify-center mb-6 group-hover:bg-nesa-blue group-hover:text-white transition-colors">
+                <item.icon size={28} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-nesa-blue transition-colors">{item.label}</h3>
+              <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
+              
+              <div className="mt-6 flex items-center gap-2 text-nesa-blue font-bold text-xs uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                Launch Service <ChevronRight size={14} />
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="mt-20 p-12 bg-nesa-dark-blue rounded-[3rem] text-white overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-center md:text-left">
+            <h3 className="text-2xl font-bold mb-2">Need immediate assistance?</h3>
+            <p className="text-blue-100 opacity-80">Our support team is available 24/7 for technical issues.</p>
+          </div>
+          <button 
+            onClick={() => handleReloadClick('contact')}
+            className="bg-white text-nesa-dark-blue px-8 py-4 rounded-2xl font-black text-lg hover:bg-blue-50 transition-all shadow-xl"
+          >
+            Contact Support
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function AdminPage({ t }: { t: any }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'students' | 'schools' | 'results' | 'users' | 'settings'>('dashboard');
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === '123') {
+      setIsLoggedIn(true);
+      setError('');
+    } else {
+      setError('Invalid password / Ijambo ry\'ibanga ritaryo');
+    }
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="fixed inset-0 bg-gray-50 flex items-center justify-center z-[100]"
+      >
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-gray-200 shadow-2xl space-y-6">
+          <div className="w-16 h-16 bg-nesa-blue text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg">
+            <Lock size={32} />
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-nesa-blue">{t.admin.loginTitle}</h2>
+            <p className="text-gray-500 text-sm">Access restricted to authorized personnel</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-gray-700">{t.admin.passwordLabel}</label>
+              <input 
+                type="password" 
+                className={`w-full p-3 rounded-xl border ${error ? 'border-rose-500' : 'border-gray-300'} focus:ring-2 focus:ring-nesa-blue outline-none transition-all`}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoFocus
+              />
+              {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-nesa-blue text-white py-4 rounded-xl font-bold text-lg hover:bg-nesa-dark-blue transition-all shadow-lg"
+            >
+              {t.admin.loginButton}
+            </button>
+          </form>
+          <div className="text-center pt-4">
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="text-gray-400 text-sm hover:text-nesa-blue transition-colors flex items-center justify-center gap-2 mx-auto"
+            >
+              <ArrowLeft size={14} /> Return to Public Portal
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const SidebarItem = ({ id, label, icon: Icon }: { id: typeof activeTab; label: string; icon: any }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+        activeTab === id 
+          ? 'bg-nesa-blue text-white shadow-lg' 
+          : 'text-gray-400 hover:bg-blue-50 hover:text-nesa-blue'
+      }`}
+    >
+      <Icon size={20} />
+      <span className="font-bold text-sm">{label}</span>
+    </button>
+  );
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 bg-gray-50 flex z-[100]"
+    >
+      {/* Admin Sidebar */}
+      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col p-6">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-10 h-10 bg-nesa-blue rounded-xl flex items-center justify-center text-white font-bold text-xl">N</div>
+          <div>
+            <h1 className="text-nesa-blue font-black text-lg leading-tight">ADMIN</h1>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">NESA Portal</p>
+          </div>
+        </div>
+
+        <nav className="flex-grow space-y-2">
+          <SidebarItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
+          <SidebarItem id="students" label="Students" icon={Users} />
+          <SidebarItem id="schools" label="Schools" icon={School} />
+          <SidebarItem id="results" label="Results" icon={FileText} />
+          <SidebarItem id="users" label="Staff/Users" icon={ShieldCheck} />
+          <SidebarItem id="settings" label="Settings" icon={Settings} />
+        </nav>
+
+        <div className="mt-auto pt-6 border-t border-gray-100">
+          <button 
+            onClick={() => setIsLoggedIn(false)}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 transition-all"
+          >
+            <X size={20} />
+            <span className="font-bold text-sm">{t.admin.logout}</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Admin Content Area */}
+      <main className="flex-grow overflow-y-auto p-8">
+        <header className="flex justify-between items-center mb-10">
+          <div>
+            <h2 className="text-3xl font-black text-nesa-dark-blue capitalize">{activeTab}</h2>
+            <p className="text-gray-400 text-sm">National Examination & School Inspection Authority</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right hidden md:block">
+              <p className="text-sm font-bold text-gray-800">Administrator</p>
+              <p className="text-xs text-nesa-blue">Super Admin Access</p>
+            </div>
+            <div className="w-12 h-12 bg-nesa-light-blue rounded-full border-2 border-white shadow-sm flex items-center justify-center text-nesa-blue font-bold">
+              AD
+            </div>
+          </div>
+        </header>
+
+        {activeTab === 'dashboard' && (
+          <div className="space-y-8">
+            <div className="grid md:grid-cols-4 gap-6">
+              {[
+                { label: 'Total Submissions', value: '1,284', icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
+                { label: 'P6 Students', value: '842', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                { label: 'S3 Students', value: '442', icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },
+                { label: 'Pending Reviews', value: '12', icon: Bell, color: 'text-rose-600', bg: 'bg-rose-50' },
+              ].map((stat, idx) => (
+                <div key={idx} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                  <div className={`w-12 h-12 ${stat.bg} ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
+                    <stat.icon size={24} />
+                  </div>
+                  <p className="text-gray-500 text-sm font-medium">{stat.label}</p>
+                  <p className="text-2xl font-black text-gray-900">{stat.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                  <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                    <LayoutDashboard size={20} className="text-nesa-blue" />
+                    {t.admin.submissionsTitle}
+                  </h3>
+                  <button className="text-nesa-blue text-sm font-bold hover:underline">View All</button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                      <tr>
+                        <th className="px-6 py-4 font-bold">Student Name</th>
+                        <th className="px-6 py-4 font-bold">Level</th>
+                        <th className="px-6 py-4 font-bold">District</th>
+                        <th className="px-6 py-4 font-bold">Status</th>
+                        <th className="px-6 py-4 font-bold">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {[
+                        { name: 'MUGISHA Jean', level: 'P6', district: 'Huye', status: 'Verified' },
+                        { name: 'UWASE Marie', level: 'S3', district: 'Kicukiro', status: 'Pending' },
+                        { name: 'KEZA Alice', level: 'S6', district: 'Rubavu', status: 'Verified' },
+                        { name: 'GISA Eric', level: 'L5', district: 'Musanze', status: 'Verified' },
+                        { name: 'IRADUKUNDA Bertin', level: 'P6', district: 'Gasabo', status: 'Pending' },
+                      ].map((row, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 font-bold text-gray-800">{row.name}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{row.level}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{row.district}</td>
+                          <td className="px-6 py-4">
+                            <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${
+                              row.status === 'Verified' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {row.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button className="text-nesa-blue hover:text-nesa-dark-blue"><Settings size={16} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-nesa-dark-blue text-white p-8 rounded-3xl shadow-xl">
+                  <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                    <ShieldCheck size={24} />
+                    System Status
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-blue-200">Database</span>
+                      <span className="font-bold text-green-400">Online</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-blue-200">API Gateway</span>
+                      <span className="font-bold text-green-400">Stable</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-blue-200">Server Load</span>
+                      <span className="font-bold text-amber-400">Normal (24%)</span>
+                    </div>
+                  </div>
+                  <button className="w-full mt-6 bg-white/10 hover:bg-white/20 py-3 rounded-xl text-sm font-bold transition-all">
+                    Run Diagnostics
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'students' && (
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
+            <Users size={48} className="mx-auto text-gray-300" />
+            <h3 className="text-xl font-bold text-gray-800">Student Management Module</h3>
+            <p className="text-gray-500 max-w-md mx-auto">Manage all student applications, edit profiles, and verify submitted documents from this module.</p>
+            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Load Student Data</button>
+          </div>
+        )}
+
+        {activeTab === 'schools' && (
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
+            <School size={48} className="mx-auto text-gray-300" />
+            <h3 className="text-xl font-bold text-gray-800">School Registry Module</h3>
+            <p className="text-gray-500 max-w-md mx-auto">Update the list of secondary schools, TVET centers, and TTCs available for student selection.</p>
+            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Manage Schools</button>
+          </div>
+        )}
+
+        {activeTab === 'results' && (
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
+            <FileText size={48} className="mx-auto text-gray-300" />
+            <h3 className="text-xl font-bold text-gray-800">Results Management Module</h3>
+            <p className="text-gray-500 max-w-md mx-auto">Upload national examination results, generate result slips, and manage grade distributions.</p>
+            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Upload Results (CSV)</button>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
+            <ShieldCheck size={48} className="mx-auto text-gray-300" />
+            <h3 className="text-xl font-bold text-gray-800">Staff & Permissions Module</h3>
+            <p className="text-gray-500 max-w-md mx-auto">Manage administrative users, assign roles (Super Admin, Editor, Viewer), and review audit logs.</p>
+            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Manage Staff</button>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="bg-white rounded-3xl border border-gray-200 p-8 text-center space-y-4">
+            <Settings size={48} className="mx-auto text-gray-300" />
+            <h3 className="text-xl font-bold text-gray-800">System Settings</h3>
+            <p className="text-gray-500 max-w-md mx-auto">Configure portal deadlines, maintenance mode, and global notification settings.</p>
+            <button className="bg-nesa-blue text-white px-6 py-2 rounded-xl font-bold">Save Configuration</button>
+          </div>
+        )}
+      </main>
     </motion.div>
   );
 }
